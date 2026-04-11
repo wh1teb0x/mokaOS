@@ -1,0 +1,5 @@
+[Defines]
+  DEC_SPECIFICATION              = 0x00010005
+  PACKAGE_NAME                   = MokaLoaderPkg
+  PACKAGE_GUID                   = a1b2c3d4-e5f6-7890-abcd-ef1234567890
+  PACKAGE_VERSION                = 0.1
