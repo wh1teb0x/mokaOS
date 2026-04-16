@@ -6,6 +6,7 @@
 #include <Protocol/SimpleFileSystem.h>
 #include <Protocol/DiskIo2.h>
 #include <Protocol/BlockIo.h>
+#include <Guid/FileInfo.h>
 
 
 struct MemoryMap {
@@ -138,7 +139,56 @@ EFI_STATUS EFIAPI UefiMain(
   SaveMemoryMap(&memmap, memmap_file);
   memmap_file->Close(memmap_file);
 
-  Print(L"All done\n");
+  EFI_FILE_PROTOCOL* kernel_file;
+  root_dir ->Open(root_dir, &kernel_file, L"\\kernel.elf", EFI_FILE_MODE_READ, 0);
+
+  UINTN file_info_size = sizeof(EFI_FILE_INFO) + sizeof(CHAR16) * 12;
+  UINT8 file_info_buffer[file_info_size];
+  kernel_file->GetInfo(
+    kernel_file,
+    &gEfiFileInfoGuid,
+    &file_info_size,
+    file_info_buffer
+  );
+
+  EFI_FILE_INFO* file_info = (EFI_FILE_INFO*)file_info_buffer;
+  UINTN kernel_file_size = file_info->FileSize;
+
+  EFI_PHYSICAL_ADDRESS kernel_base_addr = 0x100000; // Load the kernel at 1 MiB.
+  gBS->AllocatePages(
+    AllocateAddress,
+    EfiLoaderData,
+    (kernel_file_size + 0xFFF) / 0x1000, // Round up the number of pages needed to load the kernel.
+    &kernel_base_addr
+  );
+
+  kernel_file->Read(kernel_file, &kernel_file_size, (VOID*)kernel_base_addr);
+
+  Print(L"Kernel: 0x%0lx (%lu bytes)\n", kernel_base_addr, kernel_file_size);
+
+  EFI_STATUS status;
+  status = gBS->ExitBootServices(ImageHandle, memmap.map_key);
+  if (EFI_ERROR(status)) {
+    status = GetMemoryMap(&memmap);
+    if (EFI_ERROR(status)) {
+      Print(L"Failed to get memory map after ExitBootServices failure: %r\n", status);
+      while (1);
+    }
+    status = gBS->ExitBootServices(ImageHandle, memmap.map_key);
+    if (EFI_ERROR(status)) {
+      Print(L"Failed to exit boot services: %r\n", status);
+      while (1);
+    }
+  }
+
+  UINT64 entry_addr = *(UINT64*)(kernel_base_addr + 24); // The entry point address is located at offset 24 in the ELF header for 64-bit ELF files.
+
+  typedef void EntryPointType(void); // Define a function pointer type for the kernel entry point. The kernel entry point is expected to have the signature void kernel_main(void).
+  EntryPointType* entry_point = (EntryPointType*)entry_addr; // Cast the entry point address to a function pointer of the appropriate type.
+  entry_point(); // Jump to the kernel entry point to start executing the kernel.
+
+  Print(L"Loading kernel.elf from disk to memory at address %08lx...\n", kernel_base_addr);
+  Print(L"kernel_file_size = %08lx\n", kernel_file_size);
 
   while (1);
   return EFI_SUCCESS;
