@@ -7,7 +7,8 @@
 #include <Protocol/DiskIo2.h>
 #include <Protocol/BlockIo.h>
 #include <Guid/FileInfo.h>
-
+#include <Library/MemoryAllocationLib.h>
+#include <Protocol/GraphicsOutput.h>
 
 struct MemoryMap {
   UINTN buffer_size;
@@ -84,6 +85,47 @@ EFI_STATUS OpenRootDir(EFI_HANDLE image_handle, EFI_FILE_PROTOCOL** root) {
   return EFI_SUCCESS;
 }
 
+EFI_STATUS OpenGOP(EFI_HANDLE image_handle, EFI_GRAPHICS_OUTPUT_PROTOCOL** gop) {
+  UINTN num_gop_handles = 0;
+  EFI_HANDLE* gop_handles = NULL;
+  gBS->LocateHandleBuffer(
+    ByProtocol,
+    &gEfiGraphicsOutputProtocolGuid,
+    NULL,
+    &num_gop_handles,
+    &gop_handles
+  );
+
+  if (num_gop_handles == 0) {
+    Print(L"GOP not found\n");
+    return EFI_NOT_FOUND;
+  }
+
+  gBS->OpenProtocol(
+    gop_handles[0],
+    &gEfiGraphicsOutputProtocolGuid,
+    (VOID**)gop,
+    image_handle,
+    NULL,
+    EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
+  );
+
+  FreePool(gop_handles);
+
+  return EFI_SUCCESS;
+}
+
+const CHAR16* GetPixelFormatUnicode(EFI_GRAPHICS_PIXEL_FORMAT fmt) {
+  switch (fmt) {
+    case PixelRedGreenBlueReserved8BitPerColor: return L"PixelRedGreenBlueReserved8BitPerColor";
+    case PixelBlueGreenRedReserved8BitPerColor: return L"PixelBlueGreenRedReserved8BitPerColor";
+    case PixelBitMask: return L"PixelBitMask";
+    case PixelBltOnly: return L"PixelBltOnly";
+    case PixelFormatMax: return L"PixelFormatMax";
+    default: return L"InvalidPixelFormat";
+  }
+}
+
 // Save the memory map to a file on the EFI system partition for debugging purposes.
 EFI_STATUS SaveMemoryMap(struct MemoryMap* map, EFI_FILE_PROTOCOL* file) {
   CHAR8 buf[256];
@@ -138,6 +180,26 @@ EFI_STATUS EFIAPI UefiMain(
 
   SaveMemoryMap(&memmap, memmap_file);
   memmap_file->Close(memmap_file);
+
+  EFI_GRAPHICS_OUTPUT_PROTOCOL* gop;
+  OpenGOP(ImageHandle, &gop);
+  Print(L"Resolution: %ux%u, Pixel Format: %s, %u pixels/line\n",
+    gop->Mode->Info->HorizontalResolution,
+    gop->Mode->Info->VerticalResolution,
+    GetPixelFormatUnicode(gop->Mode->Info->PixelFormat),
+    gop->Mode->Info->PixelsPerScanLine
+  );
+  Print(L"Frame Buffer: 0x%0lx - 0x%0lx, Size: %lu bytes\n",
+    gop->Mode->FrameBufferBase,
+    gop->Mode->FrameBufferBase + gop->Mode->FrameBufferSize,
+    gop->Mode->FrameBufferSize
+  );
+
+  UINT8* frame_buffer = (UINT8*)gop->Mode->FrameBufferBase;
+  for (UINTN i = 0; i < gop->Mode->FrameBufferSize; i++) {
+    frame_buffer[i] = 255; // Clear the screen by setting all pixels to white.
+  }
+
 
   EFI_FILE_PROTOCOL* kernel_file;
   root_dir ->Open(root_dir, &kernel_file, L"\\kernel.elf", EFI_FILE_MODE_READ, 0);
