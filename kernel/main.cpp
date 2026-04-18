@@ -1,3 +1,10 @@
-extern "C" void KernelMain() { // To prevernt name mangling and to make it callable from assembly, we declare the function as extern "C".
-    while (1) __asm__("hlt");
+#include <stdint.h>
+
+extern "C" void KernelMain(uint64_t frame_buffer_base, // The kernel entry point function that will be called from the bootloader. It takes the frame buffer base address and size as arguments.
+                           uint64_t frame_buffer_size) {
+  uint8_t* frame_buffer = reinterpret_cast<uint8_t*>(frame_buffer_base);
+  for (uint64_t i = 0; i < frame_buffer_size; ++i) {
+    frame_buffer[i] = i % 256;
+  }
+  while (1) __asm__("hlt");
 }

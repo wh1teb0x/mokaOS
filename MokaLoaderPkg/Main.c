@@ -242,12 +242,12 @@ EFI_STATUS EFIAPI UefiMain(
       while (1);
     }
   }
+  
+  UINT64 entry_addr = *(UINT64*)(kernel_base_addr + 24);
 
-  UINT64 entry_addr = *(UINT64*)(kernel_base_addr + 24); // The entry point address is located at offset 24 in the ELF header for 64-bit ELF files.
-
-  typedef void EntryPointType(void); // Define a function pointer type for the kernel entry point. The kernel entry point is expected to have the signature void kernel_main(void).
-  EntryPointType* entry_point = (EntryPointType*)entry_addr; // Cast the entry point address to a function pointer of the appropriate type.
-  entry_point(); // Jump to the kernel entry point to start executing the kernel.
+  typedef void EntryPointType(UINT64, UINT64);
+  EntryPointType* entry_point = (EntryPointType*)entry_addr;
+  entry_point(gop->Mode->FrameBufferBase, gop->Mode->FrameBufferSize);
 
   Print(L"Loading kernel.elf from disk to memory at address %08lx...\n", kernel_base_addr);
   Print(L"kernel_file_size = %08lx\n", kernel_file_size);
