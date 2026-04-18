@@ -1,3 +1,6 @@
 # EDK2 build output
 Build/
 .vscode/
+
+# Object files
+*.o
