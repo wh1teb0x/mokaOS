@@ -7,3 +7,6 @@ Build/
 
 # Kernel binary
 *.elf
+
+# Study notes
+docs/notes/
