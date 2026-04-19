@@ -4,3 +4,6 @@ Build/
 
 # Object files
 *.o
+
+# Kernel binary
+*.elf
