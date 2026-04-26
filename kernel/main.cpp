@@ -2,84 +2,9 @@
 #include <stddef.h>
 
 #include "frame_buffer_config.hpp"
+#include "graphics.hpp"
+#include "font.hpp"
 
-const uint8_t kFontA[16] = {
-  0b00000000, //
-  0b00011000, //    **
-  0b00011000, //    **
-  0b00011000, //    **
-  0b00011000, //    **
-  0b00100100, //   *  *
-  0b00100100, //   *  *
-  0b00100100, //   *  *
-  0b00100100, //   *  *
-  0b01111110, //  ******
-  0b01000010, //  *    *
-  0b01000010, //  *    *
-  0b01000010, //  *    *
-  0b11100111, // ***  ***
-  0b00000000, //
-  0b00000000, //
-};
-
-struct PixelColor {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-};
-
-class PixelWriter {
-  public:
-    PixelWriter(const FrameBufferConfig& config) : config_{config} { //constructor of PixelWriter
-    }
-    virtual ~PixelWriter() = default; // Virtual destructor to ensure proper cleanup of derived classes.
-    virtual void Write(int x, int y, const PixelColor& c) = 0; // 0 means pure virtual function, which must be implemented by derived classes, which means interface of PixelWriter is defined by this function.
-
-  protected:
-    uint8_t* PixelAt(int x, int y) {
-    return config_.frame_buffer + 4 * (config_.pixels_per_scan_line * y + x);
-    }
-  
-  private:
-    const FrameBufferConfig& config_;
-};
-
-class RGBResv8BitPerColorPixelWriter : public PixelWriter {
-  public:
-    using PixelWriter::PixelWriter; // Inherit the constructor of the base class PixelWriter. C++11 feature that allows the derived class to use the constructor of the base class without having to redefine it.
-
-    virtual void Write(int x, int y, const PixelColor& c) override {
-      auto p = PixelAt(x, y);
-      p[0] = c.r;
-      p[1] = c.g;
-      p[2] = c.b;
-    }
-};
-
-class BGRResv8BitPerColorPixelWriter : public PixelWriter {
-  public:
-    using PixelWriter::PixelWriter;
-
-    virtual void Write(int x, int y, const PixelColor& c) override {
-      auto p = PixelAt(x, y);
-      p[0] = c.b;
-      p[1] = c.g;
-      p[2] = c.r;
-    }
-};
-
-void WriteAscii(PixelWriter& writer, int x, int y, char c, const PixelColor& color){ 
-  if (c != 'A') {
-    return;
-  }
-  for (int dy = 0; dy < 16; ++dy) {
-    for (int dx = 0; dx < 8; ++dx) {
-      if ((kFontA[dy] << dx) & 0x80u) { // left shift the bits of the font data. 0x80 is 10000000 in binary
-        writer.Write(x + dx, y + dy, color);
-      }
-    }
-  }
-}
 
 void* operator new(size_t size, void* buf) {
   return buf;
