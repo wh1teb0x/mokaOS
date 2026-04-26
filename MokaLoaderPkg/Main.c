@@ -2,14 +2,16 @@
 #include <Library/UefiLib.h>
 #include <Library/PrintLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Protocol/LoadedImage.h>
 #include <Protocol/SimpleFileSystem.h>
 #include <Protocol/DiskIo2.h>
 #include <Protocol/BlockIo.h>
 #include <Guid/FileInfo.h>
-#include <Library/MemoryAllocationLib.h>
+#include <Library/BaseMemoryLib.h>
 #include <Protocol/GraphicsOutput.h>
 #include "frame_buffer_config.hpp"
+#include "elf.hpp"
 
 struct MemoryMap {
   UINTN buffer_size;
@@ -156,6 +158,33 @@ void Halt(void) {
   while (1) __asm__("hlt");
 }
 
+void CalcLoadAddressRange(Elf64_Ehdr* ehdr, UINT64* first, UINT64* last) {
+  Elf64_Phdr* phdr = (Elf64_Phdr*)((UINT64)ehdr + ehdr->e_phoff);
+  *first = MAX_UINT64;
+  *last = 0;
+  for (Elf64_Half i = 0; i < ehdr->e_phnum; i++) {
+    if (phdr[i].p_type != PT_LOAD) continue;
+    *first = MIN(*first, phdr[i].p_vaddr);
+    *last = MAX(*last, phdr[i].p_vaddr + phdr[i].p_memsz);
+  } 
+}
+
+void CopyLoadSegments(Elf64_Ehdr* ehdr) {
+  Elf64_Phdr* phdr = (Elf64_Phdr*)((UINT64)ehdr + ehdr ->e_phoff);
+  for (Elf64_Half i = 0; i < ehdr ->e_phnum; i++) {
+    if (phdr[i].p_type != PT_LOAD) continue;
+
+    UINT64 segm_in_file = (UINT64)ehdr + phdr[i].p_offset;
+    CopyMem((VOID*)phdr[i].p_vaddr, (VOID*)segm_in_file, phdr[i].p_filesz);
+
+    UINTN remain_bytes = phdr[i].p_memsz - phdr[i].p_filesz;
+    SetMem((VOID*)(phdr[i].p_vaddr + phdr[i].p_filesz), remain_bytes, 0);
+  }
+}
+
+
+
+
 // Save the memory map to a file on the EFI system partition for debugging purposes.
 EFI_STATUS SaveMemoryMap(struct MemoryMap* map, EFI_FILE_PROTOCOL* file) {
   EFI_STATUS status;
@@ -280,27 +309,50 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
   EFI_FILE_INFO* file_info = (EFI_FILE_INFO*)file_info_buffer;
   UINTN kernel_file_size = file_info->FileSize;
 
-  EFI_PHYSICAL_ADDRESS kernel_base_addr = 0x100000; // Load the kernel at 1 MiB.
-  status = gBS->AllocatePages(
-    AllocateAddress,
-    EfiLoaderData,
-    (kernel_file_size + 0xFFF) / 0x1000, // Round up the number of pages needed to load the kernel.
-    &kernel_base_addr
-  );
+  // Allocate pool memory for the kernel file and read it into memory.
+  VOID* kernel_buffer;
+  status = gBS->AllocatePool(EfiLoaderData, kernel_file_size, &kernel_buffer);
   if (EFI_ERROR(status)) {
-    Print(L"Failed to allocate pages for kernel: %r\n", status);
+    Print(L"Failed to allocate pool for kernel.elf: %r\n", status);
     Halt();
   }
 
-
-  status = kernel_file->Read(kernel_file, &kernel_file_size, (VOID*)kernel_base_addr);
+  status = kernel_file->Read(kernel_file, &kernel_file_size, kernel_buffer);
   if (EFI_ERROR(status)) {
     Print(L"Failed to read kernel.elf: %r\n", status);
     Halt();
   }
 
-  Print(L"Kernel: 0x%0lx (%lu bytes)\n", kernel_base_addr, kernel_file_size);
+  // Calculate the load address range of the kernel
+  Elf64_Ehdr* kernel_ehdr = (Elf64_Ehdr*)kernel_buffer;
+  UINT64 kernel_first_addr, kernel_last_addr;
+  CalcLoadAddressRange(kernel_ehdr, &kernel_first_addr, &kernel_last_addr);
 
+  // Allocate pages for the kernel at the calculated load address range.
+  UINTN num_pages = (kernel_last_addr - kernel_first_addr + 0xfff) / 0x1000; // Round up the number of pages needed.
+  status = gBS->AllocatePages(
+    AllocateAddress,
+    EfiLoaderData,
+    num_pages,
+    &kernel_first_addr
+  );
+  if (EFI_ERROR(status)) {
+    Print(L"Failed to allocate pages for kernel.elf: %r\n", status);
+    Halt();
+  }
+
+  // Copy the loadable segments of the kernel from the buffer to the allocated memory.
+  CopyLoadSegments(kernel_ehdr);
+  Print(L"Kernel: 0x%0lx - 0x%0lx\n", kernel_first_addr, kernel_last_addr);
+
+  // Release the pool memory used for reading the kernel file, as it's no longer needed after copying the segments to the allocated pages.
+  status = gBS->FreePool(kernel_buffer);
+  if (EFI_ERROR(status)) {
+    Print(L"Failed to free pool for kernel.elf: %r\n", status);
+    Halt();
+  }
+
+  // Exit boot services.
   status = gBS->ExitBootServices(ImageHandle, memmap.map_key);
   if (EFI_ERROR(status)) {
     status = GetMemoryMap(&memmap);
@@ -314,8 +366,11 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
       Halt();
     }
   }
-  
-  UINT64 entry_addr = *(UINT64*)(kernel_base_addr + 24);
+
+  // Get the entry point address from the ELF header and jump to it.
+  UINT64 entry_addr = *(UINT64*)(kernel_first_addr + 24); // The entry point address is located at offset 24 in the ELF header.
+
+
 
   // Prepare the FrameBufferConfig structure to pass to the kernel's entry point.
   struct FrameBufferConfig config = {
@@ -341,7 +396,7 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
   EntryPointType* entry_point = (EntryPointType*)entry_addr;
   entry_point(&config);
 
-  Print(L"Loading kernel.elf from disk to memory at address %08lx...\n", kernel_base_addr);
+  Print(L"Loading kernel.elf from disk to memory at address %08lx...\n", kernel_first_addr);
   Print(L"kernel_file_size = %08lx\n", kernel_file_size);
 
   Halt();
