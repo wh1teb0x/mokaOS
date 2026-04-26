@@ -8,5 +8,8 @@ Build/
 # Kernel binary
 *.elf
 
+# Disk image
+*.img
+
 # Study notes
 docs/notes/
