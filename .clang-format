@@ -1,0 +1,8 @@
+BasedOnStyle: Google
+
+ColumnLimit: 80
+DerivePointerAlignment: false
+PointerAlignment: Left
+
+# UEFI ヘッダなど順序に意味がある場合があるため、include は並び替えない
+SortIncludes: false
