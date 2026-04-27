@@ -25,3 +25,11 @@ void WriteAscii(PixelWriter& writer, int x, int y, char c, const PixelColor& col
     }
   }
 }
+
+void WriteString(PixelWriter& writer, int x, int y, const char* s, const PixelColor& color) {
+  // Loop through each character in the string until we reach the null terminator.
+  for (int i = 0; s[i] != '\0'; ++i) {
+    // each character is 8 pixels wide, so we calculate the x position for each character by adding 8 * i to the initial x position. 
+    WriteAscii(writer, x + 8 * i, y, s[i], color);
+  }
+}

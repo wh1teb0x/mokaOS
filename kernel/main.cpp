@@ -41,5 +41,6 @@ extern "C" void KernelMain(const FrameBufferConfig& frame_buffer_config){
     WriteAscii(*pixel_writer, 8 * i, 50, c, {255, 0, 0});
   }
   
+  WriteString(*pixel_writer, 0 , 66, "Hello, MokaOS!", {0, 0, 255});
   while (1) __asm__("hlt");
 }
