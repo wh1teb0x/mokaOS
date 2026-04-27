@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -42,5 +43,8 @@ extern "C" void KernelMain(const FrameBufferConfig& frame_buffer_config){
   }
   
   WriteString(*pixel_writer, 0 , 66, "Hello, MokaOS!", {0, 0, 255});
+  char buf[128];
+  sprintf(buf, "1 + 2 = %d", 1 + 2);
+  WriteString(*pixel_writer, 0 , 82, buf, {0, 0, 0}); 
   while (1) __asm__("hlt");
 }
