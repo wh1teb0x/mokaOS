@@ -13,3 +13,6 @@ Build/
 
 # Study notes
 docs/notes/
+
+# Claude context (local only)
+CLAUDE.md
