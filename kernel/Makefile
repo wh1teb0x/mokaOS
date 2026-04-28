@@ -1,5 +1,5 @@
 TARGET = kernel.elf
-OBJS = main.o graphics.o font.o hankaku.o newlib_support.o console.o
+OBJS = main.o graphics.o font.o hankaku.o newlib_support.o console.o asmfunc.o
 DEPENDS = $(join $(dir $(OBJS)), $(addprefix .,$(notdir $(OBJS:.o=.d))))
 
 # Toolchain prerequisites (override via `make BASEDIR=... EDK2DIR=...` if needed)
@@ -41,6 +41,9 @@ kernel.elf: $(OBJS) Makefile
 
 %.o: %.c Makefile
 	clang $(CPPFLAGS) $(CFLAGS) -c $<
+
+%.o: %.asm Makefile
+	nasm -f elf64 -o $@ $<
 
 .%.d: %.cpp
 	clang++ $(CPPFLAGS) $(CXXFLAGS) -MM $< > $@
