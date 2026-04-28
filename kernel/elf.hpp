@@ -50,11 +50,11 @@ typedef struct {
 #define PT_TLS 7
 
 typedef struct {
-    Elf64_Sxword d_tag;
-    union {
-        Elf64_Xword d_val;
-        Elf64_Addr d_ptr;
-    } d_un;
+  Elf64_Sxword d_tag;
+  union {
+    Elf64_Xword d_val;
+    Elf64_Addr d_ptr;
+  } d_un;
 } Elf64_Dyn;
 
 #define DT_NULL 0
@@ -63,13 +63,13 @@ typedef struct {
 #define DT_RELAENT 9
 
 typedef struct {
-    Elf64_Addr r_offset;
-    Elf64_Xword r_info;
-    Elf64_Sxword r_addend;
+  Elf64_Addr r_offset;
+  Elf64_Xword r_info;
+  Elf64_Sxword r_addend;
 } Elf64_Rela;
 
 #define ELF64_R_SYM(i) ((i) >> 32)
 #define ELF64_R_TYPE(i) ((i) & 0xffffffffL)
-#define ELF64_R_INFO(s,t) (((s)<<32)+((t)&0xffffffffL))
+#define ELF64_R_INFO(s, t) (((s) << 32) + ((t) & 0xffffffffL))
 
 #define R_X86_64_RELATIVE 8

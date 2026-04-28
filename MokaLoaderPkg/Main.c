@@ -28,34 +28,47 @@ EFI_STATUS GetMemoryMap(struct MemoryMap* map) {
   }
 
   map->map_size = map->buffer_size;
-  return gBS->GetMemoryMap(
-    &map->map_size,
-    (EFI_MEMORY_DESCRIPTOR*)map->buffer,
-    &map->map_key,
-    &map->descriptor_size,
-    &map->descriptor_version
-  );
+  return gBS->GetMemoryMap(&map->map_size, (EFI_MEMORY_DESCRIPTOR*)map->buffer,
+                           &map->map_key, &map->descriptor_size,
+                           &map->descriptor_version);
 }
 
 const CHAR16* GetMemoryTypeUnicode(EFI_MEMORY_TYPE type) {
   switch (type) {
-    case EfiReservedMemoryType: return L"EfiReservedMemoryType";
-    case EfiLoaderCode: return L"EfiLoaderCode";
-    case EfiLoaderData: return L"EfiLoaderData";
-    case EfiBootServicesCode: return L"EfiBootServicesCode";
-    case EfiBootServicesData: return L"EfiBootServicesData";
-    case EfiRuntimeServicesCode: return L"EfiRuntimeServicesCode";
-    case EfiRuntimeServicesData: return L"EfiRuntimeServicesData";
-    case EfiConventionalMemory: return L"EfiConventionalMemory";
-    case EfiUnusableMemory: return L"EfiUnusableMemory";
-    case EfiACPIReclaimMemory: return L"EfiACPIReclaimMemory";
-    case EfiACPIMemoryNVS: return L"EfiACPIMemoryNVS";
-    case EfiMemoryMappedIO: return L"EfiMemoryMappedIO";
-    case EfiMemoryMappedIOPortSpace: return L"EfiMemoryMappedIOPortSpace";
-    case EfiPalCode: return L"EfiPalCode";
-    case EfiPersistentMemory: return L"EfiPersistentMemory";
-    case EfiMaxMemoryType: return L"EfiMaxMemoryType";
-    default: return L"InvalidMemoryType";
+    case EfiReservedMemoryType:
+      return L"EfiReservedMemoryType";
+    case EfiLoaderCode:
+      return L"EfiLoaderCode";
+    case EfiLoaderData:
+      return L"EfiLoaderData";
+    case EfiBootServicesCode:
+      return L"EfiBootServicesCode";
+    case EfiBootServicesData:
+      return L"EfiBootServicesData";
+    case EfiRuntimeServicesCode:
+      return L"EfiRuntimeServicesCode";
+    case EfiRuntimeServicesData:
+      return L"EfiRuntimeServicesData";
+    case EfiConventionalMemory:
+      return L"EfiConventionalMemory";
+    case EfiUnusableMemory:
+      return L"EfiUnusableMemory";
+    case EfiACPIReclaimMemory:
+      return L"EfiACPIReclaimMemory";
+    case EfiACPIMemoryNVS:
+      return L"EfiACPIMemoryNVS";
+    case EfiMemoryMappedIO:
+      return L"EfiMemoryMappedIO";
+    case EfiMemoryMappedIOPortSpace:
+      return L"EfiMemoryMappedIOPortSpace";
+    case EfiPalCode:
+      return L"EfiPalCode";
+    case EfiPersistentMemory:
+      return L"EfiPersistentMemory";
+    case EfiMaxMemoryType:
+      return L"EfiMaxMemoryType";
+    default:
+      return L"InvalidMemoryType";
   }
 }
 
@@ -64,56 +77,62 @@ EFI_STATUS OpenRootDir(EFI_HANDLE image_handle, EFI_FILE_PROTOCOL** root) {
   EFI_LOADED_IMAGE_PROTOCOL* loaded_image;
   EFI_SIMPLE_FILE_SYSTEM_PROTOCOL* fs;
 
-  // Open the Loaded Image Protocol to get information about the loaded image, including the device handle.
+  // Open the Loaded Image Protocol to get information about the loaded image,
+  // including the device handle.
   status = gBS->OpenProtocol(
-    image_handle, // The image handle of the loaded image.
-    &gEfiLoadedImageProtocolGuid, // The protocol GUID for the Loaded Image Protocol.
-    (VOID**)&loaded_image, // A pointer to receive the interface of the Loaded Image Protocol.
-    image_handle,
-    NULL,
-    EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL // Open the protocol by handle to get the Loaded Image Protocol interface for the current image handle.
+      image_handle,                  // The image handle of the loaded image.
+      &gEfiLoadedImageProtocolGuid,  // The protocol GUID for the Loaded Image
+                                     // Protocol.
+      (VOID**)&loaded_image,  // A pointer to receive the interface of the
+                              // Loaded Image Protocol.
+      image_handle, NULL,
+      EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL  // Open the protocol by handle to
+                                            // get the Loaded Image Protocol
+                                            // interface for the current image
+                                            // handle.
   );
   if (EFI_ERROR(status)) {
     Print(L"Failed to open Loaded Image Protocol: %r\n", status);
     return status;
   }
 
-  // Open the Simple File System Protocol on the device handle obtained from the Loaded Image Protocol to access the file system.
+  // Open the Simple File System Protocol on the device handle obtained from the
+  // Loaded Image Protocol to access the file system.
   status = gBS->OpenProtocol(
-    loaded_image->DeviceHandle, // The device handle that the EFI Image was loaded from.
-    &gEfiSimpleFileSystemProtocolGuid, // The protocol GUID for the Simple File System Protocol.
-    (VOID**)&fs, // A pointer to receive the interface of the Simple File System Protocol.
-    image_handle,
-    NULL,
-    EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL // Open the protocol by handle to get the Simple File System Protocol interface for the device handle.
+      loaded_image->DeviceHandle,  // The device handle that the EFI Image was
+                                   // loaded from.
+      &gEfiSimpleFileSystemProtocolGuid,  // The protocol GUID for the Simple
+                                          // File System Protocol.
+      (VOID**)&fs,  // A pointer to receive the interface of the Simple File
+                    // System Protocol.
+      image_handle, NULL,
+      EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL  // Open the protocol by handle to
+                                            // get the Simple File System
+                                            // Protocol interface for the device
+                                            // handle.
   );
   if (EFI_ERROR(status)) {
     Print(L"Failed to open Simple File System Protocol: %r\n", status);
     return status;
   }
 
-  status =fs->OpenVolume(fs, root);
+  status = fs->OpenVolume(fs, root);
   if (EFI_ERROR(status)) {
     Print(L"Failed to open root volume: %r\n", status);
     return status;
   }
 
-
   return EFI_SUCCESS;
 }
 
-EFI_STATUS OpenGOP(EFI_HANDLE image_handle, EFI_GRAPHICS_OUTPUT_PROTOCOL** gop) {
+EFI_STATUS OpenGOP(EFI_HANDLE image_handle,
+                   EFI_GRAPHICS_OUTPUT_PROTOCOL** gop) {
   EFI_STATUS status;
   UINTN num_gop_handles = 0;
   EFI_HANDLE* gop_handles = NULL;
 
-  status = gBS->LocateHandleBuffer(
-    ByProtocol,
-    &gEfiGraphicsOutputProtocolGuid,
-    NULL,
-    &num_gop_handles,
-    &gop_handles
-  );
+  status = gBS->LocateHandleBuffer(ByProtocol, &gEfiGraphicsOutputProtocolGuid,
+                                   NULL, &num_gop_handles, &gop_handles);
   if (EFI_ERROR(status)) {
     Print(L"Failed to locate GOP handles: %r\n", status);
     return status;
@@ -124,14 +143,9 @@ EFI_STATUS OpenGOP(EFI_HANDLE image_handle, EFI_GRAPHICS_OUTPUT_PROTOCOL** gop) 
     return EFI_NOT_FOUND;
   }
 
-  status = gBS->OpenProtocol(
-    gop_handles[0],
-    &gEfiGraphicsOutputProtocolGuid,
-    (VOID**)gop,
-    image_handle,
-    NULL,
-    EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
-  );
+  status = gBS->OpenProtocol(gop_handles[0], &gEfiGraphicsOutputProtocolGuid,
+                             (VOID**)gop, image_handle, NULL,
+                             EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
   if (EFI_ERROR(status)) {
     Print(L"Failed to open Graphics Output Protocol: %r\n", status);
     FreePool(gop_handles);
@@ -145,12 +159,18 @@ EFI_STATUS OpenGOP(EFI_HANDLE image_handle, EFI_GRAPHICS_OUTPUT_PROTOCOL** gop) 
 
 const CHAR16* GetPixelFormatUnicode(EFI_GRAPHICS_PIXEL_FORMAT fmt) {
   switch (fmt) {
-    case PixelRedGreenBlueReserved8BitPerColor: return L"PixelRedGreenBlueReserved8BitPerColor";
-    case PixelBlueGreenRedReserved8BitPerColor: return L"PixelBlueGreenRedReserved8BitPerColor";
-    case PixelBitMask: return L"PixelBitMask";
-    case PixelBltOnly: return L"PixelBltOnly";
-    case PixelFormatMax: return L"PixelFormatMax";
-    default: return L"InvalidPixelFormat";
+    case PixelRedGreenBlueReserved8BitPerColor:
+      return L"PixelRedGreenBlueReserved8BitPerColor";
+    case PixelBlueGreenRedReserved8BitPerColor:
+      return L"PixelBlueGreenRedReserved8BitPerColor";
+    case PixelBitMask:
+      return L"PixelBitMask";
+    case PixelBltOnly:
+      return L"PixelBltOnly";
+    case PixelFormatMax:
+      return L"PixelFormatMax";
+    default:
+      return L"InvalidPixelFormat";
   }
 }
 
@@ -166,12 +186,12 @@ void CalcLoadAddressRange(Elf64_Ehdr* ehdr, UINT64* first, UINT64* last) {
     if (phdr[i].p_type != PT_LOAD) continue;
     *first = MIN(*first, phdr[i].p_vaddr);
     *last = MAX(*last, phdr[i].p_vaddr + phdr[i].p_memsz);
-  } 
+  }
 }
 
 void CopyLoadSegments(Elf64_Ehdr* ehdr) {
-  Elf64_Phdr* phdr = (Elf64_Phdr*)((UINT64)ehdr + ehdr ->e_phoff);
-  for (Elf64_Half i = 0; i < ehdr ->e_phnum; i++) {
+  Elf64_Phdr* phdr = (Elf64_Phdr*)((UINT64)ehdr + ehdr->e_phoff);
+  for (Elf64_Half i = 0; i < ehdr->e_phnum; i++) {
     if (phdr[i].p_type != PT_LOAD) continue;
 
     UINT64 segm_in_file = (UINT64)ehdr + phdr[i].p_offset;
@@ -182,10 +202,8 @@ void CopyLoadSegments(Elf64_Ehdr* ehdr) {
   }
 }
 
-
-
-
-// Save the memory map to a file on the EFI system partition for debugging purposes.
+// Save the memory map to a file on the EFI system partition for debugging
+// purposes.
 EFI_STATUS SaveMemoryMap(struct MemoryMap* map, EFI_FILE_PROTOCOL* file) {
   EFI_STATUS status;
 
@@ -194,8 +212,8 @@ EFI_STATUS SaveMemoryMap(struct MemoryMap* map, EFI_FILE_PROTOCOL* file) {
 
   // Write the header line to the file.
   CHAR8* header =
-    "Index, Type, Type(name), PhysicalStart, NumberOfPages, Attribute\n";
-  len = AsciiStrLen(header); // Get the length of the header string.
+      "Index, Type, Type(name), PhysicalStart, NumberOfPages, Attribute\n";
+  len = AsciiStrLen(header);  // Get the length of the header string.
   status = file->Write(file, &len, header);
   if (EFI_ERROR(status)) {
     Print(L"Failed to write memory map header to file: %r\n", status);
@@ -203,25 +221,22 @@ EFI_STATUS SaveMemoryMap(struct MemoryMap* map, EFI_FILE_PROTOCOL* file) {
   }
 
   // Print the memory map to the file.
-  Print(L"map->buffer = %08lx, map->map_size = %08lx\n",
-    map->buffer, map->map_size);
+  Print(L"map->buffer = %08lx, map->map_size = %08lx\n", map->buffer,
+        map->map_size);
 
   // Iterate through the memory map and write each descriptor to the file.
   EFI_PHYSICAL_ADDRESS iter;
   int i;
   for (iter = (EFI_PHYSICAL_ADDRESS)map->buffer, i = 0;
-        iter < (EFI_PHYSICAL_ADDRESS)map->buffer + map->map_size;
-        iter += map->descriptor_size, i++) {
-    EFI_MEMORY_DESCRIPTOR* desc = (EFI_MEMORY_DESCRIPTOR*)iter; // Cast the current iterator position to an EFI_MEMORY_DESCRIPTOR pointer.
-    len = AsciiSPrint(buf, sizeof(buf),
-      "%u, %x, %-ls, %08lx, %lx, %lx\n",
-      i,
-      desc->Type,
-      GetMemoryTypeUnicode(desc->Type),
-      desc->PhysicalStart,
-      desc->NumberOfPages,
-      desc->Attribute & 0xfffflu
-    );
+       iter < (EFI_PHYSICAL_ADDRESS)map->buffer + map->map_size;
+       iter += map->descriptor_size, i++) {
+    EFI_MEMORY_DESCRIPTOR* desc =
+        (EFI_MEMORY_DESCRIPTOR*)iter;  // Cast the current iterator position to
+                                       // an EFI_MEMORY_DESCRIPTOR pointer.
+    len = AsciiSPrint(buf, sizeof(buf), "%u, %x, %-ls, %08lx, %lx, %lx\n", i,
+                      desc->Type, GetMemoryTypeUnicode(desc->Type),
+                      desc->PhysicalStart, desc->NumberOfPages,
+                      desc->Attribute & 0xfffflu);
     status = file->Write(file, &len, buf);
     if (EFI_ERROR(status)) {
       Print(L"Failed to write memory map to file: %r\n", status);
@@ -232,9 +247,10 @@ EFI_STATUS SaveMemoryMap(struct MemoryMap* map, EFI_FILE_PROTOCOL* file) {
   return EFI_SUCCESS;
 }
 
-EFI_STATUS EFIAPI UefiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
+EFI_STATUS EFIAPI UefiMain(EFI_HANDLE ImageHandle,
+                           EFI_SYSTEM_TABLE* SystemTable) {
   EFI_STATUS status;
-  
+
   Print(L"Hello, mokaOS!\n");
 
   CHAR8 memmap_buf[4096 * 4];
@@ -253,7 +269,9 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
   }
 
   EFI_FILE_PROTOCOL* memmap_file;
-  status = root_dir->Open(root_dir, &memmap_file, L"\\memmap", EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE, 0);
+  status = root_dir->Open(
+      root_dir, &memmap_file, L"\\memmap",
+      EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE, 0);
   if (EFI_ERROR(status)) {
     Print(L"Failed to open memory map file: %r\n", status);
     Print(L"Ignored.\n");
@@ -269,25 +287,23 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
     return status;
   }
   Print(L"Resolution: %ux%u, Pixel Format: %s, %u pixels/line\n",
-    gop->Mode->Info->HorizontalResolution,
-    gop->Mode->Info->VerticalResolution,
-    GetPixelFormatUnicode(gop->Mode->Info->PixelFormat),
-    gop->Mode->Info->PixelsPerScanLine
-  );
+        gop->Mode->Info->HorizontalResolution,
+        gop->Mode->Info->VerticalResolution,
+        GetPixelFormatUnicode(gop->Mode->Info->PixelFormat),
+        gop->Mode->Info->PixelsPerScanLine);
   Print(L"Frame Buffer: 0x%0lx - 0x%0lx, Size: %lu bytes\n",
-    gop->Mode->FrameBufferBase,
-    gop->Mode->FrameBufferBase + gop->Mode->FrameBufferSize,
-    gop->Mode->FrameBufferSize
-  );
+        gop->Mode->FrameBufferBase,
+        gop->Mode->FrameBufferBase + gop->Mode->FrameBufferSize,
+        gop->Mode->FrameBufferSize);
 
   UINT8* frame_buffer = (UINT8*)gop->Mode->FrameBufferBase;
   for (UINTN i = 0; i < gop->Mode->FrameBufferSize; i++) {
-    frame_buffer[i] = 255; // Clear the screen by setting all pixels to white.
+    frame_buffer[i] = 255;  // Clear the screen by setting all pixels to white.
   }
 
-
   EFI_FILE_PROTOCOL* kernel_file;
-  status = root_dir ->Open(root_dir, &kernel_file, L"\\kernel.elf", EFI_FILE_MODE_READ, 0);
+  status = root_dir->Open(root_dir, &kernel_file, L"\\kernel.elf",
+                          EFI_FILE_MODE_READ, 0);
   if (EFI_ERROR(status)) {
     Print(L"Failed to open kernel.elf: %r\n", status);
     return status;
@@ -295,12 +311,8 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
 
   UINTN file_info_size = sizeof(EFI_FILE_INFO) + sizeof(CHAR16) * 12;
   UINT8 file_info_buffer[file_info_size];
-  status = kernel_file->GetInfo(
-    kernel_file,
-    &gEfiFileInfoGuid,
-    &file_info_size,
-    file_info_buffer
-  );
+  status = kernel_file->GetInfo(kernel_file, &gEfiFileInfoGuid, &file_info_size,
+                                file_info_buffer);
   if (EFI_ERROR(status)) {
     Print(L"Failed to get kernel.elf file info: %r\n", status);
     return status;
@@ -329,23 +341,22 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
   CalcLoadAddressRange(kernel_ehdr, &kernel_first_addr, &kernel_last_addr);
 
   // Allocate pages for the kernel at the calculated load address range.
-  UINTN num_pages = (kernel_last_addr - kernel_first_addr + 0xfff) / 0x1000; // Round up the number of pages needed.
-  status = gBS->AllocatePages(
-    AllocateAddress,
-    EfiLoaderData,
-    num_pages,
-    &kernel_first_addr
-  );
+  UINTN num_pages = (kernel_last_addr - kernel_first_addr + 0xfff) /
+                    0x1000;  // Round up the number of pages needed.
+  status = gBS->AllocatePages(AllocateAddress, EfiLoaderData, num_pages,
+                              &kernel_first_addr);
   if (EFI_ERROR(status)) {
     Print(L"Failed to allocate pages for kernel.elf: %r\n", status);
     Halt();
   }
 
-  // Copy the loadable segments of the kernel from the buffer to the allocated memory.
+  // Copy the loadable segments of the kernel from the buffer to the allocated
+  // memory.
   CopyLoadSegments(kernel_ehdr);
   Print(L"Kernel: 0x%0lx - 0x%0lx\n", kernel_first_addr, kernel_last_addr);
 
-  // Release the pool memory used for reading the kernel file, as it's no longer needed after copying the segments to the allocated pages.
+  // Release the pool memory used for reading the kernel file, as it's no longer
+  // needed after copying the segments to the allocated pages.
   status = gBS->FreePool(kernel_buffer);
   if (EFI_ERROR(status)) {
     Print(L"Failed to free pool for kernel.elf: %r\n", status);
@@ -357,7 +368,8 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
   if (EFI_ERROR(status)) {
     status = GetMemoryMap(&memmap);
     if (EFI_ERROR(status)) {
-      Print(L"Failed to get memory map after ExitBootServices failure: %r\n", status);
+      Print(L"Failed to get memory map after ExitBootServices failure: %r\n",
+            status);
       Halt();
     }
     status = gBS->ExitBootServices(ImageHandle, memmap.map_key);
@@ -368,18 +380,16 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
   }
 
   // Get the entry point address from the ELF header and jump to it.
-  UINT64 entry_addr = *(UINT64*)(kernel_first_addr + 24); // The entry point address is located at offset 24 in the ELF header.
+  UINT64 entry_addr =
+      *(UINT64*)(kernel_first_addr + 24);  // The entry point address is located
+                                           // at offset 24 in the ELF header.
 
-
-
-  // Prepare the FrameBufferConfig structure to pass to the kernel's entry point.
-  struct FrameBufferConfig config = {
-    (UINT8*)gop->Mode->FrameBufferBase,
-    gop->Mode->Info->PixelsPerScanLine,
-    gop->Mode->Info->HorizontalResolution,
-    gop->Mode->Info->VerticalResolution,
-    0
-  };
+  // Prepare the FrameBufferConfig structure to pass to the kernel's entry
+  // point.
+  struct FrameBufferConfig config = {(UINT8*)gop->Mode->FrameBufferBase,
+                                     gop->Mode->Info->PixelsPerScanLine,
+                                     gop->Mode->Info->HorizontalResolution,
+                                     gop->Mode->Info->VerticalResolution, 0};
   switch (gop->Mode->Info->PixelFormat) {
     case PixelRedGreenBlueReserved8BitPerColor:
       config.pixel_format = kPixelRGBResv8BitPerColor;
@@ -396,7 +406,8 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
   EntryPointType* entry_point = (EntryPointType*)entry_addr;
   entry_point(&config);
 
-  Print(L"Loading kernel.elf from disk to memory at address %08lx...\n", kernel_first_addr);
+  Print(L"Loading kernel.elf from disk to memory at address %08lx...\n",
+        kernel_first_addr);
   Print(L"kernel_file_size = %08lx\n", kernel_file_size);
 
   Halt();

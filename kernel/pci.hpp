@@ -37,4 +37,4 @@ inline int num_device;
 // Function to scan all PCI buses and populate the devices array with detected
 // devices
 Error ScanAllBus();
-} 
+}  // namespace pci
