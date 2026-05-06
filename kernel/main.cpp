@@ -8,22 +8,17 @@
 #include "font.hpp"
 #include "console.hpp"
 #include "pci.hpp"
+#include "mouse.hpp"
+#include "logger.hpp"
 
 void operator delete(void* obj) noexcept {}
 
+extern "C" void __cxa_pure_virtual() {
+  while (1) __asm__("hlt");
+}
+
 const PixelColor kDesktopBGColor{45, 118, 237};
 const PixelColor kDesktopFGColor{255, 255, 255};
-
-const int kMouseCursorWidth = 15;
-const int kMouseCursorHeight = 24;
-const char mouse_cursor_shape[kMouseCursorHeight][kMouseCursorWidth + 1] = {
-    "@              ", "@@             ", "@.@            ", "@..@           ",
-    "@...@          ", "@....@         ", "@.....@        ", "@......@       ",
-    "@.......@      ", "@........@     ", "@.........@    ", "@..........@   ",
-    "@...........@  ", "@............@ ", "@......@@@@@@@@", "@......@       ",
-    "@....@@.@      ", "@...@ @.@      ", "@..@   @.@     ", "@.@    @.@     ",
-    "@@      @.@    ", "@       @.@    ", "         @.@   ", "         @@@   ",
-};
 
 char pixel_writer_buf[sizeof(RGBResv8BitPerColorPixelWriter)];
 PixelWriter* pixel_writer;
@@ -72,26 +67,7 @@ extern "C" void KernelMain(const FrameBufferConfig& frame_buffer_config) {
       Console{*pixel_writer, kDesktopFGColor, kDesktopBGColor};
   printk("Welcome to MokaOS!\n");
 
-  for (int dy = 0; dy < kMouseCursorHeight; ++dy) {
-    for (int dx = 0; dx < kMouseCursorWidth; ++dx) {
-      if (mouse_cursor_shape[dy][dx] == '@') {
-        pixel_writer->Write(200 + dx, 100 + dy, {0, 0, 0});
-      } else if (mouse_cursor_shape[dy][dx] == '.') {
-        pixel_writer->Write(200 + dx, 100 + dy, {255, 255, 255});
-      }
-    }
-  }
-
-  auto err = pci::ScanAllBus();
-  printk("PCI scan result: %s\n", err.Name());
-
-  for (int i = 0; i < pci::num_device; ++i) {
-    const auto& dev = pci::devices[i];
-    auto vendor_id = pci::ReadVendorId(dev.bus, dev.device, dev.function);
-    auto class_code = pci::ReadClassCode(dev.bus, dev.device, dev.function);
-    printk("%d.%d.%d: vend %04x, class %08x, head %02x\n", dev.bus, dev.device,
-           dev.function, vendor_id, class_code, dev.header_type);
-  }
+  SetLogLevel(kWarn);
 
   while (1) __asm__("hlt");
 }

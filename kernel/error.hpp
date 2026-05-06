@@ -30,8 +30,8 @@ class Error {
   // initializer list is a C++11 feature that allows the member variable code_
   // to be initialized directly with the value of code,
   // which can improve performance and reduce memory usage.
-  Error(Code code, const char* file, int line)
-      : code_{code}, file_{file}, line_{line} {};
+  Error(Code code, int line, const char* file)
+      : code_{code}, line_{line}, file_{file} {};
 
   operator bool() const { return code_ != Code::kSuccess; }
 
@@ -75,7 +75,7 @@ class Error {
   const char* file_;  // file name where the error is created.
 };
 
-#define MAKE_ERROR(code) Error((code), __FILE__, __LINE__)
+#define MAKE_ERROR(code) Error((code), __LINE__, __FILE__)
 
 template <class T>
 struct WithError {
